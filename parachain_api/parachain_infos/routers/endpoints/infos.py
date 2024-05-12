@@ -1,15 +1,15 @@
 from fastapi import APIRouter, Depends, Path
-from substrateinterface import SubstrateInterface
+from substrateinterface import Keypair
 
 from core.dependencies.substrate_interface import get_substrate_interface_connection
-
+from parachain_infos.schemas.fee_info import FeeInfo
 
 router = APIRouter()
 
 
 @router.get(
     '/extrinsics/{block_hash}',
-    description='Получить мета данные для определенного блока'
+    description='Получить мета данные для блока по его хэшу'
 )
 def retrieve_extrinsics(
     substrate=Depends(get_substrate_interface_connection),
@@ -48,3 +48,29 @@ def retrieve_extrinsics(
         extrinsics_data.append(extrinsic_info)
 
     return extrinsics_data
+
+
+@router.post(
+    '/fee/{destination}',
+    description='Узнать стоимость налога на транзакцию',
+)
+def retrieve_fee(
+    request_body: FeeInfo,
+    destination: str = Path(description='Хэш пользователя получателя'),
+    substrate=Depends(get_substrate_interface_connection),
+):
+    keypair = Keypair.create_from_uri(f'//{request_body.name_for_keypair_by_uri}')
+
+    call = substrate.compose_call(
+        call_module='Balances',
+        call_function='transfer',
+        call_params={
+            'dest': f'{destination}',
+            'value': f'{request_body.value}',
+        }
+    )
+
+    # Get payment info
+    payment_info = substrate.get_payment_info(call=call, keypair=keypair)
+
+    return {'result': {'destination': destination, 'payment_info': payment_info}}
