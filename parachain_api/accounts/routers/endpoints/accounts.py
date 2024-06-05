@@ -14,9 +14,12 @@ def get_balance(
     account_hash: str=Path(description='Хэш аккаунта'),
     substrate=Depends(get_substrate_interface_connection),
 ):
-    result = substrate.query('System', 'Account', [f'{account_hash}'])
+    try:
+        result = substrate.query('System', 'Account', [f'{account_hash}'])
 
-    return {'result': {'user_hash': account_hash, 'balance': result.value['data']['free']}}
+        return {'result': {'user_hash': account_hash, 'balance': result.value['data']['free']}}
+    except Exception as e:
+        return {'error': str(e)}
 
 
 @router.get(
@@ -24,9 +27,12 @@ def get_balance(
     description='Получить список пользователей и их информацию'
 )
 def get_accounts(substrate=Depends(get_substrate_interface_connection)):
-    result = substrate.query_map("System", "Account", max_results=100)
-    accounts = []
-    for account, account_info in result:
-        accounts.append(f'{account.value}: {account_info.value}')
+    try:
+        result = substrate.query_map("System", "Account", max_results=100)
+        accounts = []
+        for account, account_info in result:
+            accounts.append(f'{account.value}: {account_info.value}')
 
-    return accounts
+        return accounts
+    except Exception as e:
+        return {'error': str(e)}
